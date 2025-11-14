@@ -342,7 +342,7 @@ function createSofa() {
 function createVideoScreen() {
     // Create HTML video element
     videoElement = document.createElement('video');
-    videoElement.src = 'Comp 1_6.mp4';
+    videoElement.src = 'placeholder.mp4';
     videoElement.loop = true;
     videoElement.muted = true;
     videoElement.playsInline = true;
