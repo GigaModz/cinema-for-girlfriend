@@ -137,26 +137,138 @@
             display: none;
             z-index: 50;
         }
+
+        #volume-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 100;
+        }
+
+        #volume-slider {
+            width: 150px;
+            margin: 0 10px;
+        }
+
+        #mute-button {
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        #lobby-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1410;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+        }
+
+        #lobby-container h2 {
+            color: white;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        #lobby-container p {
+            color: white;
+            font-size: 20px;
+            margin-bottom: 30px;
+        }
+
+        #color-picker {
+            width: 100px;
+            height: 100px;
+            border: none;
+            padding: 0;
+            margin-bottom: 30px;
+        }
+
+        #join-button {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+        }
+
+        #cinema-container {
+            display: none;
+        }
+
+        #start-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 400;
+        }
+
+        #start-button {
+            padding: 20px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
-    <div id="info">
-        <h3>🎬 Cinema Room</h3>
-        <p><strong>Controls:</strong></p>
-        <p>• WASD - Move</p>
-        <p>• SPACE - Jump</p>
-        <p>• Mouse - Look around</p>
-        <p>• E - Sit on sofa</p>
-        <p>• Click to lock mouse</p>
-        <p id="player-count">Players: 1</p>
+    <div id="start-container">
+        <button id="start-button">Click to Start</button>
     </div>
 
-    <div class="crosshair"></div>
-    <div id="interaction-prompt">Press E to sit</div>
+    <div id="lobby-container" style="display: none;">
+        <h2>Choose Your Color</h2>
+        <p>Select a color for your character</p>
+        <input type="color" id="color-picker" value="#4CAF50">
+        <button id="join-button">Join Cinema</button>
+    </div>
 
-    <div id="countdown-display"></div>
+    <div id="cinema-container">
+        <div id="info">
+            <h3>🎬 Cinema Room</h3>
+            <p><strong>Controls:</strong></p>
+            <p>• WASD - Move</p>
+            <p>• SPACE - Jump</p>
+            <p>• Mouse - Look around</p>
+            <p>• E - Sit on sofa</p>
+            <p>• Click to lock mouse</p>
+            <p id="player-count">Players: 1</p>
+        </div>
 
-    <div id="romantic-messages-container"></div>
+        <div class="crosshair"></div>
+        <div id="interaction-prompt">Press E to sit</div>
+
+        <div id="countdown-display"></div>
+
+        <div id="romantic-messages-container"></div>
+
+        <div id="volume-controls">
+            <div id="mute-button">🔇</div>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1">
+        </div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script type="importmap">

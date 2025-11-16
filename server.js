@@ -12,23 +12,32 @@ app.use(express.static('public'));
 
 // Store connected players
 const players = {};
+let videoState = {
+  action: 'pause',
+  currentTime: 0
+};
 
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
 
-  // Initialize new player
-  players[socket.id] = {
-    id: socket.id,
-    position: { x: 0, y: 1.6, z: 5 },
-    rotation: { x: 0, y: 0 },
-    isSitting: false
-  };
+  socket.on('joinGame', (data) => {
+    players[socket.id] = {
+      id: socket.id,
+      position: { x: 0, y: 1.6, z: 5 },
+      rotation: { x: 0, y: 0 },
+      isSitting: false,
+      color: data.color
+    };
 
-  // Send existing players to new player
-  socket.emit('currentPlayers', players);
+    // Send existing players to new player
+    socket.emit('currentPlayers', players);
 
-  // Notify other players about new player
-  socket.broadcast.emit('playerJoined', players[socket.id]);
+    // Send current video state to new player
+    socket.emit('videoSync', videoState);
+
+    // Notify other players about new player
+    socket.broadcast.emit('playerJoined', players[socket.id]);
+  });
 
   // Handle player movement
   socket.on('playerMove', (data) => {
@@ -56,8 +65,10 @@ io.on('connection', (socket) => {
 
   // Handle video control
   socket.on('videoControl', (data) => {
+    console.log('Received videoControl event:', data);
+    videoState = data;
     // Broadcast video control to all clients
-    io.emit('videoSync', data);
+    io.emit('videoSync', videoState);
   });
 
   // Handle disconnection

@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
 // Game state
 const socket = io();
-let scene, camera, renderer, cssRenderer, controls;
+let scene, camera, renderer, controls;
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 let canJump = false;
 let velocity = new THREE.Vector3();
@@ -18,6 +17,7 @@ const GRAVITY = 20.0;
 const otherPlayers = {};
 let isSitting = false;
 let sittingPosition = null;
+let interactionCooldown = false;
 
 // Video
 let videoScreen, videoTexture, videoElement;
@@ -29,10 +29,41 @@ let sofa, sofaInteractionZone;
 // Animation
 let clock;
 
-init();
-animate();
+initStartScreen();
 
-function init() {
+function initStartScreen() {
+    const startContainer = document.getElementById('start-container');
+    const startButton = document.getElementById('start-button');
+    const lobbyContainer = document.getElementById('lobby-container');
+
+    startButton.addEventListener('click', () => {
+        startContainer.style.display = 'none';
+        lobbyContainer.style.display = 'flex';
+        initLobby();
+    }, { once: true });
+}
+
+function initLobby() {
+    const joinButton = document.getElementById('join-button');
+    const colorPicker = document.getElementById('color-picker');
+    const lobbyContainer = document.getElementById('lobby-container');
+    const cinemaContainer = document.getElementById('cinema-container');
+
+    joinButton.addEventListener('click', () => {
+        lobbyContainer.style.display = 'none';
+        cinemaContainer.style.display = 'block';
+        const playerColor = colorPicker.value;
+        joinGame(playerColor);
+    });
+}
+
+function joinGame(playerColor) {
+    socket.emit('joinGame', { color: playerColor });
+    initCinema(playerColor);
+    animate();
+}
+
+function initCinema(playerColor) {
     // Scene
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1410);
@@ -50,15 +81,7 @@ function init() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
-    document.body.appendChild(renderer.domElement);
-
-    // CSS3D Renderer for HTML video
-    cssRenderer = new CSS3DRenderer();
-    cssRenderer.setSize(window.innerWidth, window.innerHeight);
-    cssRenderer.domElement.style.position = 'absolute';
-    cssRenderer.domElement.style.top = '0';
-    cssRenderer.domElement.style.pointerEvents = 'none';
-    document.body.appendChild(cssRenderer.domElement);
+    document.getElementById('cinema-container').appendChild(renderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
     scene.add(ambientLight);
@@ -115,6 +138,15 @@ function init() {
     // Video screen
     createVideoScreen();
 
+    // Prime the video element
+    if (videoElement) {
+        videoElement.play().then(() => {
+            videoElement.pause();
+        }).catch(err => {
+            console.error("Error priming video:", err);
+        });
+    }
+
     const ceilingTextureLoader = new THREE.TextureLoader();
     const ceilingTexture = ceilingTextureLoader.load('wood-floor.jpg');
     ceilingTexture.wrapS = THREE.RepeatWrapping;
@@ -135,6 +167,7 @@ function init() {
 
     // Add simple but beautiful decorations
     createSimpleDecor();
+    createFloorLamps();
 
     // Controls
     controls = new PointerLockControls(camera, renderer.domElement);
@@ -159,10 +192,13 @@ function init() {
     window.addEventListener('resize', onWindowResize);
 
     // Setup multiplayer
-    setupMultiplayer();
+    setupMultiplayer(playerColor);
 
     // Setup video controls
     setupVideoControls();
+
+    // Setup volume controls
+    setupVolumeControls();
 
     // Initialize clock
     clock = new THREE.Clock();
@@ -172,26 +208,7 @@ function init() {
 }
 
 function setupRomanticMessages() {
-    const messages = [
-        "Marimi, you're my favorite person 💖",
-        "Shmari makes every day better ✨",
-        "With you, everything feels right 🌙",
-        "Mariam, you're the best thing that happened to me 💕",
-        "Late nights with Shmari >>> everything else 🌟",
-        "Marimi's laugh is my favorite sound 🎵",
-        "You + Me = Perfect 💫",
-        "Shmari, I choose you every time 💗",
-        "My world got better when Marimi walked in 🌸",
-        "No one gets me like Shmari does 🌹",
-        "Mariam, you make the ordinary magical ✨",
-        "Every moment with Marimi is a vibe 💖",
-        "Shmari's energy >>> 🔥",
-        "You're my safe place, Marimi 🏡",
-        "Mariam, you're literally unmatched 👑",
-        "Obsessed with everything about Shmari 💕",
-        "You're not like anyone else, Marimi 🌺",
-        "Shmari = Home 💫"
-    ];
+    const messages = ". . . . . . .".split('');
 
     const container = document.getElementById('romantic-messages-container');
 
@@ -342,24 +359,30 @@ function createSofa() {
 function createVideoScreen() {
     // Create HTML video element
     videoElement = document.createElement('video');
-    videoElement.src = 'placeholder.mp4';
+    videoElement.src = 'cow.mp4';
     videoElement.loop = true;
     videoElement.muted = true;
     videoElement.playsInline = true;
     videoElement.preload = 'auto';
-    videoElement.style.width = '1920px';
-    videoElement.style.height = '1080px';
-    videoElement.style.backgroundColor = '#000000';
+    videoElement.style.display = 'none'; // Hide the video element
+    document.body.appendChild(videoElement);
 
-    console.log('Video element created:', videoElement);
 
-    // Create CSS3D object from video element
-    const videoObject = new CSS3DObject(videoElement);
-    videoObject.position.set(0, 2.5, -9.5);
-    videoObject.scale.set(0.00417, 0.00417, 1); // Scale to match 8x4.5 world units
-    scene.add(videoObject);
+    videoTexture = new THREE.VideoTexture(videoElement);
+    videoTexture.minFilter = THREE.LinearFilter;
+    videoTexture.magFilter = THREE.LinearFilter;
+    videoTexture.format = THREE.RGBAFormat;
+    videoTexture.colorSpace = THREE.SRGBColorSpace;
 
-    console.log('CSS3D video object added to scene');
+    const videoMaterial = new THREE.MeshStandardMaterial({
+        emissive: 0xffffff,
+        emissiveMap: videoTexture,
+    });
+    const videoGeometry = new THREE.PlaneGeometry(8, 4.5);
+    videoPlane = new THREE.Mesh(videoGeometry, videoMaterial);
+    videoPlane.position.set(0, 2.5, -9.49);
+    scene.add(videoPlane);
+
 
     // Screen frame (WebGL mesh for the frame)
     const frameGeometry = new THREE.BoxGeometry(8.3, 4.8, 0.2);
@@ -427,12 +450,12 @@ function createSimpleDecor() {
     scene.add(rug);
 }
 
-function createPlayerMesh(playerId) {
+function createPlayerMesh(playerId, color = 0x4CAF50) {
     const group = new THREE.Group();
 
     // Body
     const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x4CAF50 });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(color) });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.castShadow = true;
     group.add(body);
@@ -446,6 +469,48 @@ function createPlayerMesh(playerId) {
     group.add(head);
 
     return group;
+}
+
+function createFloorLamps() {
+    const lampPositions = [
+        new THREE.Vector3(-9, 0, 9),
+        new THREE.Vector3(9, 0, 9),
+        new THREE.Vector3(-9, 0, -9),
+        new THREE.Vector3(9, 0, -9),
+    ];
+
+    lampPositions.forEach(position => {
+        const lamp = new THREE.Group();
+
+        // Lamp base
+        const baseGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 16);
+        const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7, metalness: 0.1 });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        base.position.y = 0.05;
+        lamp.add(base);
+
+        // Lamp pole
+        const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.8, 8);
+        const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8, metalness: 0.2 });
+        const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+        pole.position.y = 0.95;
+        lamp.add(pole);
+
+        // Lamp shade
+        const shadeGeometry = new THREE.CylinderGeometry(0.2, 0.4, 0.4, 16);
+        const shadeMaterial = new THREE.MeshStandardMaterial({ color: 0xfff8e1, emissive: 0xfff8e1, emissiveIntensity: 0.5 });
+        const shade = new THREE.Mesh(shadeGeometry, shadeMaterial);
+        shade.position.y = 1.95;
+        lamp.add(shade);
+
+        // Lamp light
+        const light = new THREE.PointLight(0xfff8e1, 1, 5);
+        light.position.y = 1.95;
+        lamp.add(light);
+
+        lamp.position.copy(position);
+        scene.add(lamp);
+    });
 }
 
 function onKeyDown(event) {
@@ -487,9 +552,13 @@ function handleInteraction() {
             startCountdown();
         } else {
             sittingPosition = null;
+            // Move player in front of the sofa
+            camera.position.set(0, PLAYER_HEIGHT, 0);
             // Stop video when standing up
-            videoElement.pause();
-            videoElement.currentTime = 0;
+            socket.emit('videoControl', {
+                action: 'pause',
+                currentTime: 0
+            });
         }
 
         socket.emit('playerSit', isSitting);
@@ -509,15 +578,7 @@ function startCountdown() {
             countdownDisplay.textContent = count;
         } else if (count === 0) {
             countdownDisplay.textContent = 'NOW!';
-            // Start video
-            videoElement.muted = false;
-            videoElement.currentTime = 0;
-            videoElement.play().then(() => {
-                console.log('Video playing, paused:', videoElement.paused, 'currentTime:', videoElement.currentTime);
-                console.log('Video dimensions:', videoElement.videoWidth, 'x', videoElement.videoHeight);
-            }).catch(err => {
-                console.error('Error playing video:', err);
-            });
+            console.log('Emitting videoControl event');
             socket.emit('videoControl', {
                 action: 'play',
                 currentTime: 0
@@ -605,19 +666,19 @@ function updatePlayerMovement(delta) {
     });
 }
 
-function setupMultiplayer() {
+function setupMultiplayer(playerColor) {
     socket.on('currentPlayers', (players) => {
         Object.keys(players).forEach((id) => {
             if (id !== socket.id) {
                 addOtherPlayer(id, players[id]);
             }
         });
-        updatePlayerCount();
+        updatePlayerCount(Object.keys(players).length);
     });
 
     socket.on('playerJoined', (player) => {
         addOtherPlayer(player.id, player);
-        updatePlayerCount();
+        updatePlayerCount(Object.keys(otherPlayers).length + 1);
     });
 
     socket.on('playerMoved', (data) => {
@@ -635,17 +696,18 @@ function setupMultiplayer() {
         if (otherPlayers[id]) {
             scene.remove(otherPlayers[id]);
             delete otherPlayers[id];
-            updatePlayerCount();
+            updatePlayerCount(Object.keys(otherPlayers).length + 1);
         }
     });
 
     socket.on('videoSync', (data) => {
+        console.log('Received videoSync event:', data);
         handleVideoSync(data);
     });
 }
 
 function addOtherPlayer(id, playerData) {
-    const playerMesh = createPlayerMesh(id);
+    const playerMesh = createPlayerMesh(id, playerData.color);
     playerMesh.position.set(
         playerData.position.x,
         playerData.position.y,
@@ -655,8 +717,7 @@ function addOtherPlayer(id, playerData) {
     otherPlayers[id] = playerMesh;
 }
 
-function updatePlayerCount() {
-    const count = Object.keys(otherPlayers).length + 1;
+function updatePlayerCount(count) {
     document.getElementById('player-count').textContent = `Players: ${count}`;
 }
 
@@ -664,13 +725,35 @@ function setupVideoControls() {
     // No manual controls needed - video auto-starts with countdown
 }
 
+function setupVolumeControls() {
+    const volumeSlider = document.getElementById('volume-slider');
+    const muteButton = document.getElementById('mute-button');
+
+    volumeSlider.addEventListener('input', (e) => {
+        if (videoElement) {
+            videoElement.volume = e.target.value;
+        }
+    });
+
+    muteButton.addEventListener('click', () => {
+        if (videoElement) {
+            videoElement.muted = !videoElement.muted;
+            muteButton.textContent = videoElement.muted ? '🔇' : '🔊';
+        }
+    });
+}
+
 
 function handleVideoSync(data) {
     switch(data.action) {
         case 'play':
             videoElement.currentTime = data.currentTime;
-            videoElement.muted = false;
-            videoElement.play();
+            videoElement.muted = true; // Mute the video first
+            videoElement.play().then(() => {
+                videoElement.muted = false; // Unmute after playback starts
+            }).catch(err => {
+                console.error('Error playing video:', err);
+            });
             break;
         case 'pause':
             videoElement.currentTime = data.currentTime;
@@ -683,7 +766,6 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    cssRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 // Animation loop
@@ -693,6 +775,9 @@ function animate() {
     const delta = clock.getDelta();
     updatePlayerMovement(delta);
 
+    if (videoTexture) {
+        videoTexture.needsUpdate = true;
+    }
+
     renderer.render(scene, camera);
-    cssRenderer.render(scene, camera);
 }
