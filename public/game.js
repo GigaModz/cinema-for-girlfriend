@@ -21,8 +21,9 @@ let interactionCooldown = false;
 
 // Video
 let videoScreen, videoTexture, videoElement;
-let videoPlane;
+let videoPlane, videoMaterial, defaultMaterial;
 let cornerLamps = [];
+let spotlightHelper;
 
 // Objects
 let sofa, sofaInteractionZone;
@@ -163,7 +164,7 @@ function initCinema(playerColor) {
     });
     const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
     ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.y = 4;
+    ceiling.position.y = 6;
     scene.add(ceiling);
 
     // Add projector
@@ -272,37 +273,37 @@ function createWalls() {
 
     // Back wall (behind video screen)
     const backWall = new THREE.Mesh(
-        new THREE.BoxGeometry(20, 4, 0.2),
+        new THREE.BoxGeometry(20, 6, 0.2),
         wallMaterial
     );
-    backWall.position.set(0, 2, -10);
+    backWall.position.set(0, 3, -10);
     backWall.receiveShadow = true;
     scene.add(backWall);
 
     // Front wall
     const frontWall = new THREE.Mesh(
-        new THREE.BoxGeometry(20, 4, 0.2),
+        new THREE.BoxGeometry(20, 6, 0.2),
         wallMaterial
     );
-    frontWall.position.set(0, 2, 10);
+    frontWall.position.set(0, 3, 10);
     frontWall.receiveShadow = true;
     scene.add(frontWall);
 
     // Left wall
     const leftWall = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 4, 20),
+        new THREE.BoxGeometry(0.2, 6, 20),
         wallMaterial
     );
-    leftWall.position.set(-10, 2, 0);
+    leftWall.position.set(-10, 3, 0);
     leftWall.receiveShadow = true;
     scene.add(leftWall);
 
     // Right wall
     const rightWall = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 4, 20),
+        new THREE.BoxGeometry(0.2, 6, 20),
         wallMaterial
     );
-    rightWall.position.set(10, 2, 0);
+    rightWall.position.set(10, 3, 0);
     rightWall.receiveShadow = true;
     scene.add(rightWall);
 }
@@ -363,31 +364,41 @@ function createSofa() {
 function createProjector() {
     const projectorGroup = new THREE.Group();
 
+    // Pole
+    const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 8);
+    const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+    pole.position.y = 0.5;
+    projectorGroup.add(pole);
+
     // Projector body
-    const bodyGeometry = new THREE.BoxGeometry(0.5, 0.3, 0.8);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+    const bodyGeometry = new THREE.BoxGeometry(0.75, 0.45, 1.2);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     projectorGroup.add(body);
 
     // Projector lens
-    const lensGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16);
+    const lensGeometry = new THREE.CylinderGeometry(0.225, 0.225, 0.15, 16);
     const lensMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const lens = new THREE.Mesh(lensGeometry, lensMaterial);
     lens.rotation.x = Math.PI / 2;
-    lens.position.z = -0.4;
+    lens.position.z = -0.6;
     projectorGroup.add(lens);
 
-    projectorGroup.position.set(0, 3.8, -1);
+    projectorGroup.position.set(0, 5, -1);
 
     // Projector light
-    const projectorLight = new THREE.SpotLight(0xffffff, 0, 50, Math.PI / 12, 0.3, 1);
-    projectorLight.position.set(0, 3.7, -0.5);
-    projectorLight.target.position.set(0, 2.5, -9.8);
+    const projectorLight = new THREE.SpotLight(0xffffff, 1.5, 50, Math.PI / 12, 0.3, 1);
+    projectorLight.position.set(0, 4.9, -0.5);
+    projectorLight.target.position.set(0, 3, -9.8);
     projectorLight.castShadow = true;
 
     scene.add(projectorGroup);
     scene.add(projectorLight);
     scene.add(projectorLight.target);
+
+    // spotlightHelper = new THREE.SpotLightHelper(projectorLight);
+    // scene.add(spotlightHelper);
 }
 
 function createVideoScreen() {
@@ -409,26 +420,37 @@ function createVideoScreen() {
     videoTexture.colorSpace = THREE.SRGBColorSpace;
     videoTexture.flipY = true;
 
-    const videoMaterial = new THREE.MeshStandardMaterial({
-        emissive: 0xffffff,
-        emissiveMap: videoTexture,
+    videoMaterial = new THREE.MeshBasicMaterial({
+        map: videoTexture,
     });
-    const videoGeometry = new THREE.PlaneGeometry(8, 4.5);
-    videoPlane = new THREE.Mesh(videoGeometry, videoMaterial);
-    videoPlane.position.set(0, 2.5, -9.49);
+
+    defaultMaterial = new THREE.MeshStandardMaterial({
+        color: 0x808080,
+        roughness: 0.8,
+        metalness: 0.1
+    });
+
+    const videoGeometry = new THREE.PlaneGeometry(9.78, 5.5);
+    videoPlane = new THREE.Mesh(videoGeometry, defaultMaterial);
+    videoPlane.position.set(0, 3, -9.49);
     scene.add(videoPlane);
 
 
     // Screen frame (WebGL mesh for the frame)
-    const frameGeometry = new THREE.BoxGeometry(8.3, 4.8, 0.2);
+    const frameGeometry = new THREE.BoxGeometry(10.08, 5.8, 0.2);
     const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
-    frame.position.set(0, 2.5, -9.6);
+    frame.position.set(0, 3, -9.6);
     scene.add(frame);
 
     // Debug video loading
     videoElement.addEventListener('loadedmetadata', () => {
         console.log('Video metadata loaded:', videoElement.videoWidth, 'x', videoElement.videoHeight);
+        const videoAspect = videoElement.videoWidth / videoElement.videoHeight;
+        const planeWidth = 8;
+        const planeHeight = planeWidth / videoAspect;
+        videoPlane.geometry.dispose(); // Dispose the old geometry
+        videoPlane.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
     });
 
     videoElement.addEventListener('canplay', () => {
@@ -458,6 +480,12 @@ function turnOnProjector() {
     cornerLamps.forEach(lamp => {
         lamp.intensity = 0;
     });
+    if (videoPlane) {
+        videoPlane.material = videoMaterial;
+    }
+    // if (spotlightHelper) {
+    //     spotlightHelper.update();
+    // }
 }
 
 function turnOffProjector() {
@@ -468,6 +496,12 @@ function turnOffProjector() {
     cornerLamps.forEach(lamp => {
         lamp.intensity = 1;
     });
+    if (videoPlane) {
+        videoPlane.material = defaultMaterial;
+    }
+    // if (spotlightHelper) {
+    //     spotlightHelper.update();
+    // }
 }
 
 function createSimpleDecor() {
