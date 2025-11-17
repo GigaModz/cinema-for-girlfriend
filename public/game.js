@@ -359,7 +359,7 @@ function createSofa() {
 function createVideoScreen() {
     // Create HTML video element
     videoElement = document.createElement('video');
-    videoElement.src = 'cow.mp4';
+    videoElement.src = '1116.mp4';
     videoElement.loop = true;
     videoElement.muted = true;
     videoElement.playsInline = true;
@@ -373,6 +373,7 @@ function createVideoScreen() {
     videoTexture.magFilter = THREE.LinearFilter;
     videoTexture.format = THREE.RGBAFormat;
     videoTexture.colorSpace = THREE.SRGBColorSpace;
+    videoTexture.flipY = true;
 
     const videoMaterial = new THREE.MeshStandardMaterial({
         emissive: 0xffffff,
