@@ -22,6 +22,7 @@ let interactionCooldown = false;
 // Video
 let videoScreen, videoTexture, videoElement;
 let videoPlane;
+let cornerLamps = [];
 
 // Objects
 let sofa, sofaInteractionZone;
@@ -86,26 +87,26 @@ function initCinema(playerColor) {
     const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
     scene.add(ambientLight);
 
-    const spotlight1 = new THREE.SpotLight(0xffffff, 2, 20, Math.PI / 6, 0.5, 1);
-    spotlight1.position.set(-5, 3.8, -5);
-    spotlight1.target.position.set(0, 2.5, -9.8);
-    spotlight1.castShadow = true;
-    scene.add(spotlight1);
-    scene.add(spotlight1.target);
+    // const spotlight1 = new THREE.SpotLight(0xffffff, 2, 20, Math.PI / 6, 0.5, 1);
+    // spotlight1.position.set(-5, 3.8, -5);
+    // spotlight1.target.position.set(0, 2.5, -9.8);
+    // spotlight1.castShadow = true;
+    // scene.add(spotlight1);
+    // scene.add(spotlight1.target);
 
-    const spotlight2 = new THREE.SpotLight(0xffffff, 2, 20, Math.PI / 6, 0.5, 1);
-    spotlight2.position.set(5, 3.8, -5);
-    spotlight2.target.position.set(0, 2.5, -9.8);
-    spotlight2.castShadow = true;
-    scene.add(spotlight2);
-    scene.add(spotlight2.target);
+    // const spotlight2 = new THREE.SpotLight(0xffffff, 2, 20, Math.PI / 6, 0.5, 1);
+    // spotlight2.position.set(5, 3.8, -5);
+    // spotlight2.target.position.set(0, 2.5, -9.8);
+    // spotlight2.castShadow = true;
+    // scene.add(spotlight2);
+    // scene.add(spotlight2.target);
 
-    const spotlight3 = new THREE.SpotLight(0xffffff, 1.5, 20, Math.PI / 6, 0.5, 1);
-    spotlight3.position.set(0, 3.8, -5);
-    spotlight3.target.position.set(0, 2.5, -9.8);
-    spotlight3.castShadow = true;
-    scene.add(spotlight3);
-    scene.add(spotlight3.target);
+    // const spotlight3 = new THREE.SpotLight(0xffffff, 1.5, 20, Math.PI / 6, 0.5, 1);
+    // spotlight3.position.set(0, 3.8, -5);
+    // spotlight3.target.position.set(0, 2.5, -9.8);
+    // spotlight3.castShadow = true;
+    // scene.add(spotlight3);
+    // scene.add(spotlight3.target);
 
     const sofaLight = new THREE.PointLight(0xffffff, 1.2, 8);
     sofaLight.position.set(0, 2.5, -1.5);
@@ -164,6 +165,9 @@ function initCinema(playerColor) {
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.y = 4;
     scene.add(ceiling);
+
+    // Add projector
+    createProjector();
 
     // Add simple but beautiful decorations
     createSimpleDecor();
@@ -356,6 +360,36 @@ function createSofa() {
     scene.add(sofaInteractionZone);
 }
 
+function createProjector() {
+    const projectorGroup = new THREE.Group();
+
+    // Projector body
+    const bodyGeometry = new THREE.BoxGeometry(0.5, 0.3, 0.8);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    projectorGroup.add(body);
+
+    // Projector lens
+    const lensGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16);
+    const lensMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const lens = new THREE.Mesh(lensGeometry, lensMaterial);
+    lens.rotation.x = Math.PI / 2;
+    lens.position.z = -0.4;
+    projectorGroup.add(lens);
+
+    projectorGroup.position.set(0, 3.8, -1);
+
+    // Projector light
+    const projectorLight = new THREE.SpotLight(0xffffff, 0, 50, Math.PI / 12, 0.3, 1);
+    projectorLight.position.set(0, 3.7, -0.5);
+    projectorLight.target.position.set(0, 2.5, -9.8);
+    projectorLight.castShadow = true;
+
+    scene.add(projectorGroup);
+    scene.add(projectorLight);
+    scene.add(projectorLight.target);
+}
+
 function createVideoScreen() {
     // Create HTML video element
     videoElement = document.createElement('video');
@@ -401,7 +435,39 @@ function createVideoScreen() {
         console.log('Video can play');
     });
 
+    videoElement.addEventListener('play', () => {
+        turnOnProjector();
+    });
+
+    videoElement.addEventListener('pause', () => {
+        turnOffProjector();
+    });
+
+    videoElement.addEventListener('ended', () => {
+        turnOffProjector();
+    });
+
     videoElement.load();
+}
+
+function turnOnProjector() {
+    const projectorLight = scene.children.find(obj => obj instanceof THREE.SpotLight);
+    if (projectorLight) {
+        projectorLight.intensity = 1.5;
+    }
+    cornerLamps.forEach(lamp => {
+        lamp.intensity = 0;
+    });
+}
+
+function turnOffProjector() {
+    const projectorLight = scene.children.find(obj => obj instanceof THREE.SpotLight);
+    if (projectorLight) {
+        projectorLight.intensity = 0;
+    }
+    cornerLamps.forEach(lamp => {
+        lamp.intensity = 1;
+    });
 }
 
 function createSimpleDecor() {
@@ -507,7 +573,9 @@ function createFloorLamps() {
         // Lamp light
         const light = new THREE.PointLight(0xfff8e1, 1, 5);
         light.position.y = 1.95;
+        light.name = 'corner-light';
         lamp.add(light);
+        cornerLamps.push(light);
 
         lamp.position.copy(position);
         scene.add(lamp);
